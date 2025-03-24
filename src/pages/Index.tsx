@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { db } from "@/utils/db";
@@ -12,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronRight, Plus, BarChart, FolderKanban, CheckCircle, Clock, Circle } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 
 const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -26,22 +26,24 @@ const Dashboard = () => {
         setProjects(data);
       } catch (error) {
         console.error("Failed to load projects:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load projects.",
-          variant: "destructive",
-        });
+        sonnerToast.error("Failed to load projects.");
       } finally {
         setIsLoading(false);
       }
     };
 
     loadProjects();
-  }, [toast]);
+  }, []);
   
   const handleCreateProject = async (projectData: any) => {
-    const newProject = await db.createProject(projectData);
-    setProjects((prev) => [...prev, newProject]);
+    try {
+      const newProject = await db.createProject(projectData);
+      setProjects((prev) => [...prev, newProject]);
+      sonnerToast.success("Project created successfully!");
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      sonnerToast.error("Failed to create project.");
+    }
   };
   
   // Get recent projects (last 3)

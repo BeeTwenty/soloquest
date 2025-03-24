@@ -1,4 +1,3 @@
-
 import { Project, Task, ProjectStatus, TaskStatus, Priority } from "../types";
 import { DEMO_PROJECTS } from "../lib/constants";
 import { toast } from "sonner";
@@ -7,7 +6,7 @@ import { toast } from "sonner";
 // These should be configured in your hosting environment
 const DB_CONFIG = {
   host: import.meta.env.VITE_DB_HOST || "localhost",
-  port: import.meta.env.VITE_DB_PORT || 5432,
+  port: parseInt(import.meta.env.VITE_DB_PORT || "5432"),
   database: import.meta.env.VITE_DB_NAME || "task_manager",
   user: import.meta.env.VITE_DB_USER || "postgres",
   password: import.meta.env.VITE_DB_PASSWORD || "postgres"
@@ -43,8 +42,10 @@ class DatabaseClient {
         await this.pool.query('SELECT NOW()'); // Test connection
         this.isConnected = true;
         console.log("Connected to database successfully");
+        toast.success("Connected to database successfully");
       } catch (importError) {
         console.warn("Could not import pg package or connect to PostgreSQL. Using fallback mode.", importError);
+        toast.warning("Could not connect to database. Using fallback mode with demo data.");
         // Fallback to demo data for development or when DB is not available
         this.projects = DEMO_PROJECTS as Project[];
         this.isConnected = true;
@@ -53,6 +54,7 @@ class DatabaseClient {
       return true;
     } catch (error) {
       console.error("Failed to connect to database:", error);
+      toast.error("Failed to connect to database. Using fallback data.");
       // Fallback to demo data
       this.projects = DEMO_PROJECTS as Project[];
       this.isConnected = true;
@@ -74,7 +76,7 @@ class DatabaseClient {
         return await operation();
       } catch (error) {
         console.error("Database operation failed:", error);
-        toast("Database operation failed. Using fallback data.");
+        toast.error("Database operation failed. Using fallback data.");
         return fallback();
       }
     } else {

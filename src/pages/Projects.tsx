@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { db } from "@/utils/db";
 import { Project, ProjectStatus } from "@/types";
-import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import ProjectCard from "@/components/ProjectCard";
 import NewProjectDialog from "@/components/NewProjectDialog";
@@ -16,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Grid3X3, LayoutList, Plus, Search } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 
 const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -25,28 +24,24 @@ const Projects = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
   
   useEffect(() => {
     const loadProjects = async () => {
       try {
+        setIsLoading(true);
         const data = await db.getProjects();
         setProjects(data);
         setFilteredProjects(data);
       } catch (error) {
         console.error("Failed to load projects:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load projects.",
-          variant: "destructive",
-        });
+        sonnerToast.error("Failed to load projects.");
       } finally {
         setIsLoading(false);
       }
     };
 
     loadProjects();
-  }, [toast]);
+  }, []);
   
   useEffect(() => {
     let result = [...projects];
@@ -70,8 +65,14 @@ const Projects = () => {
   }, [projects, statusFilter, searchQuery]);
   
   const handleCreateProject = async (projectData: any) => {
-    const newProject = await db.createProject(projectData);
-    setProjects((prev) => [...prev, newProject]);
+    try {
+      const newProject = await db.createProject(projectData);
+      setProjects((prev) => [...prev, newProject]);
+      sonnerToast.success("Project created successfully!");
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      sonnerToast.error("Failed to create project.");
+    }
   };
   
   const handleDeleteProject = async (projectId: string) => {
@@ -80,20 +81,13 @@ const Projects = () => {
       
       if (success) {
         setProjects((prev) => prev.filter((p) => p.id !== projectId));
-        toast({
-          title: "Success",
-          description: "Project deleted successfully.",
-        });
+        sonnerToast.success("Project deleted successfully!");
       } else {
         throw new Error("Failed to delete project");
       }
     } catch (error) {
       console.error("Failed to delete project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete project.",
-        variant: "destructive",
-      });
+      sonnerToast.error("Failed to delete project.");
     }
   };
   
