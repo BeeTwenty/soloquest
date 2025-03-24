@@ -1,4 +1,4 @@
-import { Project, Task, ProjectStatus, TaskStatus, Priority } from "../types";
+import { Project, Task, ProjectStatus, TaskStatus, Priority, User, UserRole } from "../types";
 import { DEMO_PROJECTS } from "../lib/constants";
 import { toast } from "sonner";
 
@@ -12,12 +12,20 @@ const DB_CONFIG = {
   password: import.meta.env.VITE_DB_PASSWORD || "postgres"
 };
 
+// Admin user configuration from environment variables
+const ADMIN_CONFIG = {
+  email: import.meta.env.VITE_ADMIN_EMAIL || "admin@example.com",
+  password: import.meta.env.VITE_ADMIN_PASSWORD || "strongpassword123"
+};
+
 // This is a DatabaseClient implementation designed to work with a PostgreSQL database
 // It provides a fallback to in-memory storage when not connected to a database
 class DatabaseClient {
   private isConnected: boolean = false;
   private projects: Project[] = [];
+  private users: User[] = [];
   private pool: any = null;
+  private isInitialized: boolean = false;
 
   constructor() {
     console.log("Database client initialized with config:", {
@@ -43,12 +51,17 @@ class DatabaseClient {
         this.isConnected = true;
         console.log("Connected to database successfully");
         toast.success("Connected to database successfully");
+        
+        // Initialize database if needed
+        await this.initializeDatabase();
       } catch (importError) {
         console.warn("Could not import pg package or connect to PostgreSQL. Using fallback mode.", importError);
         toast.warning("Could not connect to database. Using fallback mode with demo data.");
         // Fallback to demo data for development or when DB is not available
         this.projects = DEMO_PROJECTS as Project[];
+        this.users = [this.createAdminUser()];
         this.isConnected = true;
+        this.isInitialized = true;
       }
       
       return true;
@@ -57,8 +70,69 @@ class DatabaseClient {
       toast.error("Failed to connect to database. Using fallback data.");
       // Fallback to demo data
       this.projects = DEMO_PROJECTS as Project[];
+      this.users = [this.createAdminUser()];
       this.isConnected = true;
+      this.isInitialized = true;
       return true; // Return true to allow the app to continue functioning
+    }
+  }
+
+  private createAdminUser(): User {
+    return {
+      id: "admin-1",
+      email: ADMIN_CONFIG.email,
+      password: ADMIN_CONFIG.password, // In a real app, this would be hashed
+      name: "Admin User",
+      role: UserRole.ADMIN,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  private async initializeDatabase(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      // Check if the users table exists and has any users
+      const userTableExists = await this.pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'users'
+        );
+      `);
+      
+      if (!userTableExists.rows[0].exists) {
+        console.log("Users table doesn't exist. Database may need initialization.");
+        this.isInitialized = false;
+        return;
+      }
+
+      const userCount = await this.pool.query('SELECT COUNT(*) FROM users');
+      
+      // If there are no users, create the admin user
+      if (parseInt(userCount.rows[0].count) === 0) {
+        console.log("No users found. Creating admin user...");
+        
+        // In a real application, you would hash the password
+        await this.pool.query(`
+          INSERT INTO users (email, password, name, role, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+        `, [
+          ADMIN_CONFIG.email,
+          ADMIN_CONFIG.password, // Should be hashed in production
+          'Admin User',
+          UserRole.ADMIN
+        ]);
+        
+        console.log("Admin user created successfully.");
+        toast.success("Admin user created successfully.");
+      }
+      
+      this.isInitialized = true;
+    } catch (error) {
+      console.error("Failed to initialize database:", error);
+      toast.error("Failed to initialize database.");
     }
   }
 
@@ -424,6 +498,139 @@ class DatabaseClient {
         const initialLength = project.tasks.length;
         project.tasks = project.tasks.filter(t => t.id !== taskId);
         return project.tasks.length < initialLength;
+      }
+    );
+  }
+
+  async getUsers(): Promise<User[]> {
+    return this.executeQuery(
+      async () => {
+        const result = await this.pool.query(`
+          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
+          FROM users
+          ORDER BY created_at DESC
+        `);
+        
+        return result.rows;
+      },
+      () => this.users
+    );
+  }
+  
+  async getUserById(id: string): Promise<User | null> {
+    return this.executeQuery(
+      async () => {
+        const result = await this.pool.query(`
+          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
+          FROM users
+          WHERE id = $1
+        `, [id]);
+        
+        return result.rows.length > 0 ? result.rows[0] : null;
+      },
+      () => this.users.find(u => u.id === id) || null
+    );
+  }
+  
+  async getUserByEmail(email: string): Promise<User | null> {
+    return this.executeQuery(
+      async () => {
+        const result = await this.pool.query(`
+          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt", password
+          FROM users
+          WHERE email = $1
+        `, [email]);
+        
+        return result.rows.length > 0 ? result.rows[0] : null;
+      },
+      () => this.users.find(u => u.email === email) || null
+    );
+  }
+  
+  async createUser(user: Omit<User, "id" | "createdAt" | "updatedAt">): Promise<User> {
+    return this.executeQuery(
+      async () => {
+        // In a real application, you would hash the password
+        const result = await this.pool.query(`
+          INSERT INTO users (email, password, name, role, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          RETURNING id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
+        `, [user.email, user.password, user.name, user.role]);
+        
+        return result.rows[0];
+      },
+      () => {
+        const newUser: User = {
+          ...user,
+          id: Math.random().toString(36).substring(2, 9),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        this.users.push(newUser);
+        return newUser;
+      }
+    );
+  }
+  
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+    return this.executeQuery(
+      async () => {
+        const currentUser = await this.getUserById(id);
+        if (!currentUser) return null;
+        
+        // Only update the provided fields
+        const result = await this.pool.query(`
+          UPDATE users
+          SET 
+            email = COALESCE($1, email),
+            name = COALESCE($2, name),
+            role = COALESCE($3, role),
+            password = COALESCE($4, password),
+            updated_at = NOW()
+          WHERE id = $5
+          RETURNING id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
+        `, [
+          updates.email,
+          updates.name,
+          updates.role,
+          updates.password,
+          id
+        ]);
+        
+        return result.rows.length > 0 ? result.rows[0] : null;
+      },
+      () => {
+        const index = this.users.findIndex(u => u.id === id);
+        if (index === -1) return null;
+        
+        const updatedUser = {
+          ...this.users[index],
+          ...updates,
+          updatedAt: new Date()
+        };
+        
+        this.users[index] = updatedUser;
+        return updatedUser;
+      }
+    );
+  }
+  
+  async deleteUser(id: string): Promise<boolean> {
+    return this.executeQuery(
+      async () => {
+        const result = await this.pool.query(`
+          DELETE FROM users
+          WHERE id = $1
+          RETURNING id
+        `, [id]);
+        
+        return result.rows.length > 0;
+      },
+      () => {
+        const initialLength = this.users.length;
+        this.users = this.users.filter(u => u.id !== id);
+        return this.users.length < initialLength;
       }
     );
   }

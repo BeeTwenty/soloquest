@@ -1,0 +1,38 @@
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - VITE_DB_HOST=postgres
+      - VITE_DB_PORT=5432
+      - VITE_DB_NAME=${VITE_DB_NAME:-solo_quest}
+      - VITE_DB_USER=${VITE_DB_USER:-postgres}
+      - VITE_DB_PASSWORD=${VITE_DB_PASSWORD:-postgres}
+      - VITE_ADMIN_EMAIL=${VITE_ADMIN_EMAIL:-admin@example.com}
+      - VITE_ADMIN_PASSWORD=${VITE_ADMIN_PASSWORD:-strongpassword123}
+      - NODE_ENV=${NODE_ENV:-production}
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${VITE_DB_NAME:-solo_quest}
+      - POSTGRES_USER=${VITE_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${VITE_DB_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

@@ -1,69 +1,68 @@
-# Welcome to your Lovable project
 
-## Project info
+# SoloQuest - Project Planner for Solo Developers
 
-**URL**: https://lovable.dev/projects/b5758678-a3ac-47b6-a0d1-a44f62ba5ccb
+A project management tool designed specifically for solo developers to manage personal development projects.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- Project management with priorities and statuses
+- Task tracking with Kanban-style board
+- Project statistics and reporting
+- Database persistence with PostgreSQL
+- Docker containerization for easy deployment
 
-**Use Lovable**
+## Setup Instructions
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b5758678-a3ac-47b6-a0d1-a44f62ba5ccb) and start prompting.
+### Local Development
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Clone the repository
+2. Copy the `.env.example` file to `.env` and update values as needed
+3. Install dependencies:
+   ```
+   npm install
+   ```
+4. Start the development server:
+   ```
+   npm run dev
+   ```
 
-**Use your preferred IDE**
+### Using Docker Compose
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone the repository
+2. Copy the `.env.example` file to `.env` and update values as needed
+3. Build and start the containers:
+   ```
+   docker-compose up -d
+   ```
+4. The application will be available at http://localhost:8080
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Environment Variables
 
-Follow these steps:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| VITE_DB_HOST | Database host | postgres |
+| VITE_DB_PORT | Database port | 5432 |
+| VITE_DB_NAME | Database name | solo_quest |
+| VITE_DB_USER | Database user | postgres |
+| VITE_DB_PASSWORD | Database password | postgres |
+| VITE_ADMIN_EMAIL | Admin user email | admin@example.com |
+| VITE_ADMIN_PASSWORD | Admin user password | strongpassword123 |
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## First Time Setup
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+On first run, the application will:
+1. Connect to the PostgreSQL database
+2. Create necessary tables if they don't exist
+3. Create an initial admin user using the credentials from environment variables
 
-# Step 3: Install the necessary dependencies.
-npm i
+You can log in using the admin credentials specified in your `.env` file.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Technologies Used
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
 - React
-- shadcn-ui
+- TypeScript
+- Vite
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b5758678-a3ac-47b6-a0d1-a44f62ba5ccb) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- shadcn/ui
+- PostgreSQL
+- Docker
