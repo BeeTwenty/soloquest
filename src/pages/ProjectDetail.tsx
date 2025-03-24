@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { db } from "@/utils/db";
-import { Project, Task, TaskStatus } from "@/types";
+import { Project, Task, TaskStatus, Priority } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import TaskList from "@/components/TaskList";
@@ -39,7 +38,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const ProjectDetail = () => {
@@ -54,7 +53,7 @@ const ProjectDetail = () => {
     title: "",
     description: "",
     status: TaskStatus.TODO,
-    priority: "medium",
+    priority: Priority.MEDIUM,
   });
   const { toast } = useToast();
   
@@ -88,7 +87,11 @@ const ProjectDetail = () => {
   };
   
   const handleTaskSelectChange = (name: string, value: string) => {
-    setTaskFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "priority") {
+      setTaskFormData((prev) => ({ ...prev, [name]: value as Priority }));
+    } else {
+      setTaskFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleAddTask = async (e: React.FormEvent) => {
@@ -96,7 +99,7 @@ const ProjectDetail = () => {
     
     if (!id || !project) return;
     if (!taskFormData.title.trim()) {
-      toast.error("Task title is required");
+      sonnerToast.error("Task title is required");
       return;
     }
     
@@ -118,15 +121,15 @@ const ProjectDetail = () => {
           title: "",
           description: "",
           status: TaskStatus.TODO,
-          priority: "medium",
+          priority: Priority.MEDIUM,
         });
         
         setIsAddTaskDialogOpen(false);
-        toast.success("Task added successfully");
+        sonnerToast.success("Task added successfully");
       }
     } catch (error) {
       console.error("Failed to add task:", error);
-      toast.error("Failed to add task");
+      sonnerToast.error("Failed to add task");
     }
   };
   
@@ -148,11 +151,11 @@ const ProjectDetail = () => {
           };
         });
         
-        toast.success("Task updated successfully");
+        sonnerToast.success("Task updated successfully");
       }
     } catch (error) {
       console.error("Failed to update task:", error);
-      toast.error("Failed to update task");
+      sonnerToast.error("Failed to update task");
     }
   };
   
@@ -172,11 +175,11 @@ const ProjectDetail = () => {
           };
         });
         
-        toast.success("Task deleted successfully");
+        sonnerToast.success("Task deleted successfully");
       }
     } catch (error) {
       console.error("Failed to delete task:", error);
-      toast.error("Failed to delete task");
+      sonnerToast.error("Failed to delete task");
     }
   };
   
@@ -189,15 +192,14 @@ const ProjectDetail = () => {
       if (success) {
         setIsDeleteConfirmOpen(false);
         navigate("/projects");
-        toast.success("Project deleted successfully");
+        sonnerToast.success("Project deleted successfully");
       }
     } catch (error) {
       console.error("Failed to delete project:", error);
-      toast.error("Failed to delete project");
+      sonnerToast.error("Failed to delete project");
     }
   };
   
-  // Calculate project progress and stats
   const getTotalTasks = () => project?.tasks.length || 0;
   const getCompletedTasks = () => 
     project?.tasks.filter((task) => task.status === TaskStatus.COMPLETED).length || 0;
@@ -212,7 +214,6 @@ const ProjectDetail = () => {
     return total ? Math.round((completed / total) * 100) : 0;
   };
   
-  // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case "planning":
@@ -228,7 +229,6 @@ const ProjectDetail = () => {
     }
   };
   
-  // Get priority indicator
   const getPriorityIndicator = (priority: string) => {
     switch (priority) {
       case "high":
@@ -556,7 +556,6 @@ const ProjectDetail = () => {
         </div>
       </main>
       
-      {/* Add Task Dialog */}
       <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleAddTask}>
@@ -643,7 +642,6 @@ const ProjectDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Label } from "@/components/ui/label";
@@ -42,7 +41,7 @@ const Settings = () => {
     port: DB_CONFIG.port.toString(),
     database: DB_CONFIG.database,
     user: DB_CONFIG.user,
-    password: "••••••••", // Masked for security
+    password: "••••••••",
   });
   
   const [notificationSettings, setNotificationSettings] = useState({
@@ -74,6 +73,13 @@ const Settings = () => {
     }));
   };
   
+  const handleThemeChange = (theme: string) => {
+    setGeneralSettings(prev => ({
+      ...prev,
+      theme,
+    }));
+  };
+  
   const handleNotificationToggleChange = (name: string, value: boolean) => {
     setNotificationSettings(prev => ({
       ...prev,
@@ -82,28 +88,23 @@ const Settings = () => {
   };
   
   const handleSaveGeneralSettings = () => {
-    // In a real application, this would save to the server
     toast.success("General settings saved");
   };
   
   const handleSaveDatabaseSettings = () => {
-    // In a real application, this would update the database connection
     toast.success("Database settings saved");
     toast.info("Note: Changes to database settings require a restart");
   };
   
   const handleSaveNotificationSettings = () => {
-    // In a real application, this would update notification preferences
     toast.success("Notification settings saved");
   };
   
   const exportData = () => {
-    // In a real application, this would trigger a data export
     toast.success("Export started. You'll be notified when it's ready.");
   };
   
   const importData = () => {
-    // In a real application, this would trigger a file upload dialog
     toast.success("Import feature will be available in a future update");
   };
   
@@ -543,7 +544,7 @@ const Settings = () => {
                           className={`border rounded-md p-3 cursor-pointer hover:border-primary transition-colors ${
                             generalSettings.theme === "light" ? "border-primary bg-secondary/50" : ""
                           }`}
-                          onClick={() => handleToggleChange("theme", "light")}
+                          onClick={() => handleThemeChange("light")}
                         >
                           <div className="h-20 bg-white border rounded-md mb-2"></div>
                           <div className="text-center text-sm font-medium">Light</div>
@@ -553,7 +554,7 @@ const Settings = () => {
                           className={`border rounded-md p-3 cursor-pointer hover:border-primary transition-colors ${
                             generalSettings.theme === "dark" ? "border-primary bg-secondary/50" : ""
                           }`}
-                          onClick={() => handleToggleChange("theme", "dark")}
+                          onClick={() => handleThemeChange("dark")}
                         >
                           <div className="h-20 bg-gray-900 border border-gray-700 rounded-md mb-2"></div>
                           <div className="text-center text-sm font-medium">Dark</div>
@@ -563,7 +564,7 @@ const Settings = () => {
                           className={`border rounded-md p-3 cursor-pointer hover:border-primary transition-colors ${
                             generalSettings.theme === "system" ? "border-primary bg-secondary/50" : ""
                           }`}
-                          onClick={() => handleToggleChange("theme", "system")}
+                          onClick={() => handleThemeChange("system")}
                         >
                           <div className="h-20 bg-gradient-to-r from-white to-gray-900 border rounded-md mb-2"></div>
                           <div className="text-center text-sm font-medium">System</div>
