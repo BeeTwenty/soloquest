@@ -9,6 +9,7 @@ A project management tool designed specifically for solo developers to manage pe
 - Task tracking with Kanban-style board
 - Project statistics and reporting
 - Database persistence with PostgreSQL
+- JWT authentication for secure access
 - Docker containerization for easy deployment
 
 ## Setup Instructions
@@ -30,6 +31,7 @@ A project management tool designed specifically for solo developers to manage pe
 
 1. Clone the repository
 2. Copy the `.env.example` file to `.env` and update values as needed
+   - **IMPORTANT**: Change the `VITE_JWT_SECRET` to a strong random string for security
 3. Build and start the containers:
    ```
    docker-compose up -d
@@ -45,6 +47,8 @@ A project management tool designed specifically for solo developers to manage pe
 | VITE_DB_NAME | Database name | solo_quest |
 | VITE_DB_USER | Database user | postgres |
 | VITE_DB_PASSWORD | Database password | postgres |
+| VITE_JWT_SECRET | Secret key for JWT tokens | change_this_to_a_secure_random_string |
+| VITE_JWT_EXPIRY | JWT token expiration time | 7d |
 | VITE_ADMIN_EMAIL | Admin user email | admin@example.com |
 | VITE_ADMIN_PASSWORD | Admin user password | strongpassword123 |
 
@@ -56,6 +60,12 @@ On first run, the application will:
 3. Create an initial admin user using the credentials from environment variables
 
 You can log in using the admin credentials specified in your `.env` file.
+
+## Security Notes
+
+- In production, always change the default JWT secret to a strong random string
+- The admin password should be changed after the first login
+- The JWT implementation uses a simplified approach for demonstration - for production use, consider using a dedicated JWT library
 
 ## Technologies Used
 

@@ -1,6 +1,7 @@
 import { Project, Task, ProjectStatus, TaskStatus, Priority, User, UserRole } from "../types";
 import { DEMO_PROJECTS } from "../lib/constants";
 import { toast } from "sonner";
+import { authUtils, JWTPayload, AuthResponse } from "./auth";
 
 // Configuration for database connection
 // These should be configured in your hosting environment
@@ -81,12 +82,25 @@ class DatabaseClient {
     return {
       id: "admin-1",
       email: ADMIN_CONFIG.email,
-      password: ADMIN_CONFIG.password, // In a real app, this would be hashed
+      password: this.hashPassword(ADMIN_CONFIG.password), // Using a hash function
       name: "Admin User",
       role: UserRole.ADMIN,
       createdAt: new Date(),
       updatedAt: new Date()
     };
+  }
+
+  // Simple password hashing function for fallback mode
+  private hashPassword(password: string): string {
+    // In a real application, you would use a proper hashing library
+    // This is a simple MD5-like hash for demonstration purposes only
+    let hash = 0;
+    for (let i = 0; i < password.length; i++) {
+      const char = password.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16);
   }
 
   private async initializeDatabase(): Promise<void> {
@@ -114,13 +128,13 @@ class DatabaseClient {
       if (parseInt(userCount.rows[0].count) === 0) {
         console.log("No users found. Creating admin user...");
         
-        // In a real application, you would hash the password
+        // Hash the password using the database function
         await this.pool.query(`
           INSERT INTO users (email, password, name, role, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          VALUES ($1, hash_password($2), $3, $4, NOW(), NOW())
         `, [
           ADMIN_CONFIG.email,
-          ADMIN_CONFIG.password, // Should be hashed in production
+          ADMIN_CONFIG.password,
           'Admin User',
           UserRole.ADMIN
         ]);
@@ -157,6 +171,77 @@ class DatabaseClient {
       // Use in-memory fallback
       return fallback();
     }
+  }
+
+  // User authentication methods
+  async login(email: string, password: string): Promise<AuthResponse | null> {
+    return this.executeQuery(
+      async () => {
+        // In the database, we use the hash_password function to compare
+        const result = await this.pool.query(`
+          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
+          FROM users
+          WHERE email = $1 AND password = hash_password($2)
+        `, [email, password]);
+        
+        if (result.rows.length === 0) {
+          return null;
+        }
+        
+        const user = result.rows[0];
+        
+        // Generate JWT token
+        const payload: JWTPayload = {
+          userId: user.id,
+          email: user.email,
+          role: user.role
+        };
+        
+        const token = authUtils.generateToken(payload);
+        
+        return {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          },
+          token
+        };
+      },
+      () => {
+        // Fallback implementation
+        const user = this.users.find(u => 
+          u.email === email && 
+          u.password === this.hashPassword(password)
+        );
+        
+        if (!user) return null;
+        
+        // Generate JWT token
+        const payload: JWTPayload = {
+          userId: user.id,
+          email: user.email,
+          role: user.role
+        };
+        
+        const token = authUtils.generateToken(payload);
+        
+        return {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          },
+          token
+        };
+      }
+    );
   }
 
   async getProjects(): Promise<Project[]> {
@@ -513,7 +598,10 @@ class DatabaseClient {
         
         return result.rows;
       },
-      () => this.users
+      () => this.users.map(u => ({
+        ...u,
+        password: '****' // Don't return passwords even in fallback mode
+      }))
     );
   }
   
@@ -528,32 +616,45 @@ class DatabaseClient {
         
         return result.rows.length > 0 ? result.rows[0] : null;
       },
-      () => this.users.find(u => u.id === id) || null
+      () => {
+        const user = this.users.find(u => u.id === id);
+        if (!user) return null;
+        
+        const { password, ...userWithoutPassword } = user;
+        return { ...userWithoutPassword, password: '****' } as User;
+      }
     );
   }
   
   async getUserByEmail(email: string): Promise<User | null> {
     return this.executeQuery(
       async () => {
+        // Don't return the password
         const result = await this.pool.query(`
-          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt", password
+          SELECT id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
           FROM users
           WHERE email = $1
         `, [email]);
         
         return result.rows.length > 0 ? result.rows[0] : null;
       },
-      () => this.users.find(u => u.email === email) || null
+      () => {
+        const user = this.users.find(u => u.email === email);
+        if (!user) return null;
+        
+        const { password, ...userWithoutPassword } = user;
+        return { ...userWithoutPassword, password: '****' } as User;
+      }
     );
   }
   
   async createUser(user: Omit<User, "id" | "createdAt" | "updatedAt">): Promise<User> {
     return this.executeQuery(
       async () => {
-        // In a real application, you would hash the password
+        // Hash the password before storing
         const result = await this.pool.query(`
           INSERT INTO users (email, password, name, role, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          VALUES ($1, hash_password($2), $3, $4, NOW(), NOW())
           RETURNING id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
         `, [user.email, user.password, user.name, user.role]);
         
@@ -562,13 +663,17 @@ class DatabaseClient {
       () => {
         const newUser: User = {
           ...user,
+          password: this.hashPassword(user.password), // Hash the password
           id: Math.random().toString(36).substring(2, 9),
           createdAt: new Date(),
           updatedAt: new Date()
         };
         
         this.users.push(newUser);
-        return newUser;
+        
+        // Return user without password
+        const { password, ...userWithoutPassword } = newUser;
+        return { ...userWithoutPassword, password: '****' } as User;
       }
     );
   }
@@ -580,29 +685,59 @@ class DatabaseClient {
         if (!currentUser) return null;
         
         // Only update the provided fields
-        const result = await this.pool.query(`
+        // If password is provided, hash it
+        let updateFields = "";
+        const updateValues: any[] = [];
+        let paramCount = 1;
+        
+        if (updates.email) {
+          updateFields += `email = $${paramCount}, `;
+          updateValues.push(updates.email);
+          paramCount++;
+        }
+        
+        if (updates.name) {
+          updateFields += `name = $${paramCount}, `;
+          updateValues.push(updates.name);
+          paramCount++;
+        }
+        
+        if (updates.role) {
+          updateFields += `role = $${paramCount}, `;
+          updateValues.push(updates.role);
+          paramCount++;
+        }
+        
+        if (updates.password) {
+          updateFields += `password = hash_password($${paramCount}), `;
+          updateValues.push(updates.password);
+          paramCount++;
+        }
+        
+        updateFields += `updated_at = NOW()`;
+        
+        // Add the user ID as the last parameter
+        updateValues.push(id);
+        
+        const query = `
           UPDATE users
-          SET 
-            email = COALESCE($1, email),
-            name = COALESCE($2, name),
-            role = COALESCE($3, role),
-            password = COALESCE($4, password),
-            updated_at = NOW()
-          WHERE id = $5
+          SET ${updateFields}
+          WHERE id = $${paramCount}
           RETURNING id, email, name, role, created_at as "createdAt", updated_at as "updatedAt"
-        `, [
-          updates.email,
-          updates.name,
-          updates.role,
-          updates.password,
-          id
-        ]);
+        `;
+        
+        const result = await this.pool.query(query, updateValues);
         
         return result.rows.length > 0 ? result.rows[0] : null;
       },
       () => {
         const index = this.users.findIndex(u => u.id === id);
         if (index === -1) return null;
+        
+        // If password is provided, hash it
+        if (updates.password) {
+          updates.password = this.hashPassword(updates.password);
+        }
         
         const updatedUser = {
           ...this.users[index],
@@ -611,7 +746,10 @@ class DatabaseClient {
         };
         
         this.users[index] = updatedUser;
-        return updatedUser;
+        
+        // Return user without password
+        const { password, ...userWithoutPassword } = updatedUser;
+        return { ...userWithoutPassword, password: '****' } as User;
       }
     );
   }

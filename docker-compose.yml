@@ -16,6 +16,8 @@ services:
       - VITE_DB_NAME=${VITE_DB_NAME:-solo_quest}
       - VITE_DB_USER=${VITE_DB_USER:-postgres}
       - VITE_DB_PASSWORD=${VITE_DB_PASSWORD:-postgres}
+      - VITE_JWT_SECRET=${VITE_JWT_SECRET:-change_this_to_a_secure_random_string}
+      - VITE_JWT_EXPIRY=${VITE_JWT_EXPIRY:-7d}
       - VITE_ADMIN_EMAIL=${VITE_ADMIN_EMAIL:-admin@example.com}
       - VITE_ADMIN_PASSWORD=${VITE_ADMIN_PASSWORD:-strongpassword123}
       - NODE_ENV=${NODE_ENV:-production}

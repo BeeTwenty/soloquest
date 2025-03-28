@@ -9,7 +9,7 @@ CREATE TYPE user_role AS ENUM ('admin', 'user');
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL, -- Should be hashed in production
+  password VARCHAR(255) NOT NULL, -- Will store hashed passwords
   name VARCHAR(255) NOT NULL,
   role user_role NOT NULL DEFAULT 'user',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -46,6 +46,18 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 -- Create index on tasks
 CREATE INDEX tasks_project_id_idx ON tasks(project_id);
+
+-- Create a function to hash passwords
+CREATE OR REPLACE FUNCTION hash_password(password TEXT) 
+RETURNS TEXT AS $$
+BEGIN
+  -- In a production environment, you would use a proper password hashing function
+  -- like pgcrypto's crypt() with a secure algorithm
+  -- For demonstration, we're using MD5 which is NOT secure for production
+  -- Example with pgcrypto: RETURN crypt(password, gen_salt('bf', 8));
+  RETURN MD5(password);
+END;
+$$ LANGUAGE plpgsql;
 
 -- Add admin user if provided via environment variables
 DO $$
